@@ -42,7 +42,7 @@ export function CreateTagForm() {
                 body: JSON.stringify({
                     title,
                     slug,
-                    amountOfVideos: 0,
+                    quantity: 0,
                 }),
             })
         },
