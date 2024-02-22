@@ -65,7 +65,7 @@ export function CreateTagForm() {
                     {...register('title')}
                     id="name"
                     type="text"
-                    className="border border-zinc-800 rounded-lg px-3 py-2.5 bg-zinc-800/50 w-full text-sm"
+                    className="border border-zinc-800 rounded-lg px-3 py-2.5 bg-zinc-800/50 w-full text-sm focus-visible:outline-0 focus-visible:border-teal-400"
                 />
                 {formState.errors?.title && (
                     <p className="text-sm text-red-400">{formState.errors.title.message}</p>
@@ -79,7 +79,7 @@ export function CreateTagForm() {
                     type="text"
                     readOnly
                     value={slug}
-                    className="border border-zinc-800 rounded-lg px-3 py-2 bg-zinc-800/50 w-full text-sm"
+                    className="border border-zinc-800 rounded-lg px-3 py-2 bg-zinc-800/50 w-full text-sm focus-visible:outline-0 focus-visible:border-teal-400"
                 />
             </div>
 
