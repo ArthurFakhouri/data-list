@@ -45,7 +45,7 @@ O projeto foi desenvolvido utilizando as seguintes tecnologias:
 - [Vite](https://vitejs.dev)
 - [React-Query](https://tanstack.com)
 - [Typescript](https://www.typescriptlang.org)
-- [Lucide React](https://lucide.dev/guide/packages/lucide-react)4
+- [Lucide React](https://lucide.dev/guide/packages/lucide-react)
 - [Phosphor Icons](https://phosphoricons.com)
 - [TailwindCSS](https://tailwindcss.com)
 - [Radix-UI](https://www.radix-ui.com)
