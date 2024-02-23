@@ -32,7 +32,7 @@ Navegue até a pasta onde clonou o projeto e execute os seguintes comandos no te
 - 01 - npm install (Esse comando irá instalar todas as dependências do projeto)
 - 02 - npm run dev (Esse comando irá executar o projeto e por default estará rodando em: http://localhost:5173
 - 03 - crie um novo terminal e rode o seguinte comando:
-- 03.01 - npm run server (Esse comando irá rodar o servdior em json-server)
+- 03.01 - npm run server (Esse comando irá rodar o servidor em json-server)
 
 ## 📽️ Demonstração
 
