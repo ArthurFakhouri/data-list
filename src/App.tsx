@@ -1,5 +1,5 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query"
-import { FileDown, Filter, MoreHorizontal, Plus, Search } from "lucide-react"
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { AlertTriangle, FileDown, Filter, Loader2, MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react"
 import { Header } from "./components/header"
 import { Tabs } from "./components/tabs"
 import { Button } from "./components/ui/button"
@@ -7,10 +7,19 @@ import { Control, Input } from "./components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./components/ui/table"
 import { Pagination } from "./components/pagination"
 import { useSearchParams } from "react-router-dom"
-import { useState } from "react"
+import { MouseEvent, useEffect, useMemo, useState } from "react"
 import * as Dialog from '@radix-ui/react-dialog'
+import * as PopOver from '@radix-ui/react-popover'
+import * as Alert from '@radix-ui/react-alert-dialog'
 import { CreateTagForm } from "./components/create-tag-form"
 import { Checkbox } from "./components/ui/checkbox"
+import colors from 'tailwindcss/colors'
+import { toast } from "sonner"
+import { CSVLink } from 'react-csv'
+import { FileCsv, FilePdf } from '@phosphor-icons/react'
+import { capitalize } from "./utils/capitalize"
+import { PDFDownloadLink } from "@react-pdf/renderer"
+import { TagPDF } from "./components/pdf/tags"
 
 export interface TagResponse {
   first: number
@@ -34,6 +43,39 @@ type CheckedTag = {
 }
 
 export function App() {
+  const queryClient = useQueryClient()
+
+  const { mutateAsync: deleteTagAsync, isPending } = useMutation({
+    mutationFn: async ({ id }: CheckedTag) => {
+      // delay 2s
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      await fetch(`http://localhost:3333/tags/${id}`, {
+        method: 'DELETE',
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['get-tags'],
+      })
+      toast.success('Tag removida com sucesso!')
+      setOpenPopOver("")
+      setOpenAlert([])
+      setCheckedTagList([])
+    }
+  })
+
+  useEffect(() => {
+    const onclick = () => {
+      if (openPopOver !== "") {
+        setOpenPopOver("")
+      }
+    }
+
+    document.addEventListener('click', onclick)
+
+    return () => document.removeEventListener('click', onclick)
+  })
 
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -41,8 +83,10 @@ export function App() {
   const urlFilter = searchParams.get('filter') ?? ""
 
   const [filter, setFilter] = useState(urlFilter)
+  const [openPopOver, setOpenPopOver] = useState("")
+  const [openAlert, setOpenAlert] = useState<string[]>([])
 
-  const [checkedTagList, setCheckedTagList] = useState<CheckedTag[]>([])
+  const [checkedTagList, setCheckedTagList] = useState<Tag[]>([])
 
   const { data: tagsResponse, isLoading } = useQuery<TagResponse>({
     queryKey: ['get-tags', urlFilter, page],
@@ -54,6 +98,23 @@ export function App() {
     },
     placeholderData: keepPreviousData,
   })
+
+  const { header, data } = useMemo(() => {
+    if (checkedTagList.length !== 0) {
+      const header = Object.keys(checkedTagList[0]).map(key => {
+        return {
+          label: capitalize(key),
+          key,
+        }
+      })
+
+      const data = checkedTagList
+
+      return { header, data }
+    }
+
+    return { header: [], data: [] }
+  }, [checkedTagList, tagsResponse])
 
   if (isLoading) {
     return null
@@ -68,13 +129,14 @@ export function App() {
     })
   }
 
-  function handleCheckedTag(tagId: string) {
-    if (checkedTagList.some(checkedTag => checkedTag.id === tagId)) {
-      const newCheckedTags = checkedTagList.filter(checkedTag => checkedTag.id !== tagId)
+  function handleCheckedTag(tag: Tag) {
+    if (checkedTagList.some(checkedTag => checkedTag.id === tag.id)) {
+      const newCheckedTags = checkedTagList.filter(checkedTag => checkedTag.id !== tag.id)
 
       setCheckedTagList(newCheckedTags)
     } else {
-      setCheckedTagList(checkedTagList => [...checkedTagList, { id: tagId }])
+
+      setCheckedTagList(checkedTagList => [...checkedTagList, tag])
     }
   }
 
@@ -108,7 +170,6 @@ export function App() {
       } else {
         const newCheckedTagList = tagsResponse.data
           .filter(tag => !checkedTagList.some(checkedTag => checkedTag.id === tag.id))
-          .map(tag => ({ id: tag.id }))
 
         setCheckedTagList(checkedTagList => [...checkedTagList, ...newCheckedTagList])
       }
@@ -117,6 +178,29 @@ export function App() {
 
   function handleIsCheckedTag(tagId: string) {
     return checkedTagList.some(checkedTag => checkedTag.id === tagId)
+  }
+
+  async function deleteTag(event: MouseEvent<HTMLButtonElement>, ids: string[]) {
+    event.stopPropagation()
+
+
+    await Promise.all(ids.map(id => deleteTagAsync({ id })))
+  }
+
+  function handleExtendPopOver(event: MouseEvent<HTMLButtonElement>, tagId: string) {
+    event.stopPropagation()
+
+    if (openPopOver === "") {
+      setOpenPopOver(tagId)
+    } else {
+      setOpenPopOver("")
+    }
+  }
+
+  function handleExpandAlert(event: MouseEvent<HTMLButtonElement>, tagIds: string[]) {
+    event.stopPropagation()
+
+    setOpenAlert([...tagIds])
   }
 
   return (
@@ -168,11 +252,39 @@ export function App() {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <Button disabled={checkedTagList.length === 0}>
-              <FileDown className="size-3" />
-              Export
-            </Button>
-            <Button variant="delete" disabled={checkedTagList.length === 0}>
+            <PopOver.Root>
+              <PopOver.Trigger asChild>
+                <Button disabled={checkedTagList.length === 0}>
+                  <FileDown className="size-3" />
+                  Export...
+                </Button>
+              </PopOver.Trigger>
+              <PopOver.Content className="flex flex-col gap-1.5 w-min-[200px] w-[200px] rounded-xl p-4 border border-zinc-800 bg-black" sideOffset={5}>
+                <CSVLink
+                  headers={header}
+                  data={data}
+                  className="flex items-center gap-1.5 text-xs transition background hover:bg-zinc-700 px-5 py-2 rounded-md"
+                  separator=";"
+                  filename="TagList.csv"
+                >
+                  <FileCsv className="size-5" color={colors.green[500]} weight="fill" />
+                  CSV File
+                </CSVLink>
+                <PDFDownloadLink
+                  document={<TagPDF tags={data} />}
+                  fileName="TagList.pdf"
+                >
+                  {({ blob, url, loading, error }) => (
+                    <Button disabled={loading} className="w-full px-5 py-2 round-md bg-transparent border-0 transition background hover:bg-zinc-700">
+                      <FilePdf className="size-5" color={colors.red[400]} weight="fill" />
+                      PDF File
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+                <PopOver.Arrow className="fill-zinc-800" />
+              </PopOver.Content>
+            </PopOver.Root>
+            <Button onClick={(e) => handleExpandAlert(e, checkedTagList.map(checkedTag => checkedTag.id))} variant="delete" disabled={checkedTagList.length === 0}>
               Delete tag(s)
             </Button>
           </div>
@@ -192,7 +304,7 @@ export function App() {
               return (
                 <TableRow key={tag.id}>
                   <TableCell className="w-1">
-                    <Checkbox onChange={() => handleCheckedTag(tag.id)} checked={handleIsCheckedTag(tag.id)} />
+                    <Checkbox onChange={() => handleCheckedTag(tag)} checked={handleIsCheckedTag(tag.id)} />
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-0.5">
@@ -204,15 +316,58 @@ export function App() {
                     {tag.quantity} video(s)
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button size="icon">
-                      <MoreHorizontal className="size-4" />
-                    </Button>
+                    <PopOver.Root open={openPopOver === tag.id}>
+                      <PopOver.Trigger asChild>
+                        <Button onClick={(e) => handleExtendPopOver(e, tag.id)} size="icon">
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </PopOver.Trigger>
+                      <PopOver.Portal>
+                        <PopOver.Content className="flex flex-col gap-1.5 w-min-[200px] w-[200px] rounded-xl p-4 border border-zinc-800 bg-black" sideOffset={5}>
+                          <Button type="button" onClick={(e) => handleExpandAlert(e, [tag.id])} variant="delete">
+                            Delete tag
+                          </Button>
+                          <PopOver.Arrow className="fill-zinc-800" />
+                        </PopOver.Content>
+                      </PopOver.Portal>
+                    </PopOver.Root>
                   </TableCell>
                 </TableRow>
               )
             })}
           </TableBody>
         </Table>
+
+        <Alert.Root open={openAlert.length !== 0}>
+          <Alert.Trigger asChild>
+          </Alert.Trigger>
+          <Alert.Portal>
+            <Alert.Overlay className="fixed inset-0 bg-black/70" />
+            <Alert.Content className="fixed space-y-3 top-1/2 left-1/2  transform -translate-x-1/2 -translate-y-1/2 p-5 border border-zinc-800 bg-zinc-900 rounded-md">
+              <Alert.Title className="flex flex-col justify-center items-center font-bold">
+                <AlertTriangle className="size-10" color={colors.yellow[500]} />
+                Delete Tag
+              </Alert.Title>
+              <Alert.Description className="text-zinc-400">
+                Are you sure about delete {openAlert.length} tag(s)?
+              </Alert.Description>
+              <div className="w-full flex justify-between gap-1.5">
+                <Alert.Cancel asChild>
+                  <Button onClick={() => setOpenAlert([])} className="w-[120px] justify-center">
+                    <X className="size-3" />
+                    Cancel
+                  </Button>
+                </Alert.Cancel>
+                <Alert.Action asChild>
+                  <Button onClick={(e) => deleteTag(e, openAlert)} variant="primary" className="w-[120px] justify-center">
+                    {isPending ? <Loader2 className="size-3 animate-spin" /> : <Trash2 className="size-3" />}
+                    Delete
+                  </Button>
+                </Alert.Action>
+              </div>
+            </Alert.Content>
+          </Alert.Portal>
+        </Alert.Root>
 
         {tagsResponse && <Pagination items={tagsResponse.items} pages={tagsResponse.pages} page={page} />}
       </main>
