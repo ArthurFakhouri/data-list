@@ -14,8 +14,6 @@
   <a href="#memo-licença">Licença</a>
 </p>
 
-<a target="_blank" href="https://nlw-experts-react.vercel.app">Demo</a>
-
 ## 🈸 Projeto
 
 List-data é um projeto do evento da Rocketseat React na prática, onde é uma aplicação simples 
