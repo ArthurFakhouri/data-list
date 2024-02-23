@@ -37,6 +37,10 @@ Navegue até a pasta onde clonou o projeto e execute os seguintes comandos no te
 ## 📽️ Demonstração
 
 
+https://github.com/ArthurFakhouri/data-list/assets/71707151/af098f86-9d07-4fea-b1c7-94aa99834e32
+
+
+
 ## 🚀 Tecnologias
 
 O projeto foi desenvolvido utilizando as seguintes tecnologias:
