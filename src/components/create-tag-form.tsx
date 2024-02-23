@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Button } from "./ui/button";
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner';
 
 const createTagSchema = z.object({
     title: z.string().min(3, { message: 'Minimum 3 characters.' }),
@@ -29,7 +30,7 @@ export function CreateTagForm() {
     })
 
     const slug = watch('title')
-        ? getSlugFromString(watch('title'))
+        ? getSlugFromString(watch('title')) 
         : ''
 
     const { mutateAsync } = useMutation({
@@ -50,6 +51,7 @@ export function CreateTagForm() {
             queryClient.invalidateQueries({
                 queryKey: ['get-tags'],
             })
+            toast.success('Tag criada com sucesso!')
         }
     })
 
